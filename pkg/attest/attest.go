@@ -103,11 +103,12 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 		}
 	}
 
-	vcekCertChain := []byte(uvmInformation.GetVCEK())
-
 	//TODO check VCEK Certificate against reported TCP: https://www.amd.com/system/files/TechDocs/57230.pdf page 14
+	//TODO compare against https://www.amd.com/system/files/TechDocs/56860.pdf
 
 	/* TODO: to support use outside of Azure add code to fetch the AMD certs here */
+
+	vcekCertChain := []byte(uvmInformation.GetVCEK())
 
 	uvmReferenceInfoBytes, err := base64.StdEncoding.DecodeString(uvmInformation.EncodedUvmReferenceInfo)
 
