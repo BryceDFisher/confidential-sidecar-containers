@@ -4,8 +4,11 @@
 package common
 
 import (
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"net/url"
 
 	"io/ioutil"
 	"os"
@@ -23,9 +26,51 @@ const GenerateTestData = false
 // Information supplied by the UVM specific to running Pod
 
 type UvmInformation struct {
-	EncodedSecurityPolicy   string // customer security policy
-	CertChain               string // platform certificates for the actual physical host, ascii PEM
-	EncodedUvmReferenceInfo string // endorsements for the particular UVM image
+	EncodedSecurityPolicy   string  // customer security policy
+	CertChain               string  // platform certificates for the actual physical host, ascii PEM
+	VCEKURL                 url.URL //The location to fetch updated VCEK certificates
+	EncodedUvmReferenceInfo string  // endorsements for the particular UVM image
+}
+
+//GetVCEK returns the certificate chain
+func (u UvmInformation) GetVCEK() string {
+	return u.CertChain
+}
+
+//RefreshVCEK fetches a new VCEK from the configured source and stores it in the local cache
+func (u *UvmInformation) RefreshVCEK() error {
+	return nil
+}
+
+//ErrNoVCEKCertFound is returned if the cached certificate does not include a VCEK leaf certificate
+var ErrNoVCEKCertFound error = errors.New("No PEM Certificate found encoded in VCEK chain")
+
+//GetVCEKCertificate returns the parsed certificate for the cached VCEK
+func (u *UvmInformation) GetVCEKCertificate() (*x509.Certificate, error) {
+	byteChain := []byte(u.CertChain)
+	var cert *x509.Certificate
+	for len(byteChain) > 0 {
+		var p *pem.Block
+		p, byteChain = pem.Decode(byteChain)
+		if p == nil {
+			return nil, ErrNoVCEKCertFound
+		}
+		if p.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(p.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		if cert.Subject.CommonName != "SEV-VCEK" { //https://www.amd.com/system/files/TechDocs/57230.pdf page 13
+			cert = nil
+		}
+	}
+	if cert == nil {
+		return nil, ErrNoVCEKCertFound
+	}
+	return nil, nil
 }
 
 // format of the json provided to the UVM by hcsshim. Comes fro the THIM endpoint

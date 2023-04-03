@@ -90,7 +90,22 @@ func Attest(maa MAA, runtimeDataBytes []byte, uvmInformation common.UvmInformati
 		return "", errors.Wrapf(err, "failed to deserialize attestation report")
 	}
 
-	vcekCertChain := []byte(uvmInformation.CertChain)
+	vcekCert, err := uvmInformation.GetVCEKCertificate()
+	if err != nil {
+		return "", err
+	}
+	for _, e := range vcekCert.Extensions {
+		switch e.Id.String() {
+		case "1.3.6.1.4.1.3704.1.3.8": //ucodeSPL
+		case "1.3.6.1.4.1.3704.1.3.3": //snpSPL
+		case "1.3.6.1.4.1.3704.1.3.2": //teeSPL
+		case "1.3.6.1.4.1.3704.1.3.1": //bootloaderSPL
+		}
+	}
+
+	vcekCertChain := []byte(uvmInformation.GetVCEK())
+
+	//TODO check VCEK Certificate against reported TCP: https://www.amd.com/system/files/TechDocs/57230.pdf page 14
 
 	/* TODO: to support use outside of Azure add code to fetch the AMD certs here */
 
